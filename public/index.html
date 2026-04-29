@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>学境勇者</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="app">
+      <section class="game-frame" aria-label="2.5D 像素大世界">
+        <canvas id="world" width="960" height="600"></canvas>
+        <div class="vignette" aria-hidden="true"></div>
+
+        <header class="hud top-left pixel-panel">
+          <strong>学境勇者</strong>
+          <span id="location">青石原野</span>
+        </header>
+
+        <div class="hud top-right pixel-panel">
+          <span>WASD / 方向键移动</span>
+          <span>碰到怪物开始战斗</span>
+        </div>
+
+        <div class="quest-log pixel-panel">
+          <p>当前目标</p>
+          <strong id="questText">击败 5 只怪物，收集金币升级装备。</strong>
+        </div>
+
+        <div class="minimap pixel-panel" aria-label="小地图">
+          <canvas id="minimap" width="150" height="150"></canvas>
+        </div>
+
+        <section class="hero-panel pixel-panel" aria-label="角色状态">
+          <div class="portrait" aria-hidden="true">
+            <span></span>
+          </div>
+          <div class="hero-copy">
+            <p class="label">等级 <strong id="level">1</strong></p>
+            <h1 id="heroTitle">见习学者</h1>
+            <div class="loadout">
+              <span id="weaponName">木剑</span>
+              <span id="skillName">专注回复</span>
+            </div>
+          </div>
+          <div class="meters">
+            <div class="meter hp">
+              <span>HP</span>
+              <div><i id="hpBar"></i></div>
+              <b id="hpText">100/100</b>
+            </div>
+            <div class="meter xp">
+              <span>EXP</span>
+              <div><i id="xpBar"></i></div>
+              <b id="xpText">0/60</b>
+            </div>
+          </div>
+        </section>
+
+        <div class="mobile-pad" aria-label="移动按钮">
+          <button data-move="up" type="button">▲</button>
+          <button data-move="left" type="button">◀</button>
+          <button data-move="down" type="button">▼</button>
+          <button data-move="right" type="button">▶</button>
+        </div>
+      </section>
+
+      <aside class="journal pixel-panel">
+        <section>
+          <p class="label">成长路线</p>
+          <div class="stats">
+            <div><span>攻击</span><strong id="attackText">14</strong></div>
+            <div><span>击败</span><strong id="defeatedText">0</strong></div>
+            <div><span>金币</span><strong id="coinText">0</strong></div>
+          </div>
+        </section>
+
+        <section>
+          <p class="label">武器库</p>
+          <div id="weaponList" class="cards"></div>
+        </section>
+
+        <section>
+          <p class="label">技能书</p>
+          <div id="skillList" class="cards"></div>
+        </section>
+
+        <section>
+          <p class="label">题目领域</p>
+          <div class="tabs" role="tablist">
+            <button class="tab active" data-subject="mixed" type="button">混合</button>
+            <button class="tab" data-subject="math" type="button">数学</button>
+            <button class="tab" data-subject="english" type="button">英语</button>
+            <button class="tab" data-subject="science" type="button">科学</button>
+          </div>
+        </section>
+
+        <button id="restartBtn" class="restart" type="button">重新开始</button>
+      </aside>
+    </main>
+
+    <div id="battle" class="battle hidden" role="dialog" aria-modal="true" aria-label="战斗">
+      <div class="battle-box pixel-panel">
+        <div class="battle-scene">
+          <canvas id="battleCanvas" width="620" height="260"></canvas>
+          <div class="battle-bars">
+            <div>
+              <span>勇者</span>
+              <meter id="battleHeroHp" min="0" max="100" value="100"></meter>
+            </div>
+            <div>
+              <span id="battleMonsterName">错题史莱姆</span>
+              <meter id="battleMonsterHp" min="0" max="100" value="100"></meter>
+            </div>
+          </div>
+        </div>
+
+        <div class="question-card">
+          <div class="question-head">
+            <span id="questionTag">数学</span>
+            <strong id="battleLog">答对就攻击，答错会被反击。</strong>
+          </div>
+          <h2 id="questionText">题目加载中</h2>
+          <div id="answers" class="answers"></div>
+          <div class="battle-actions">
+            <button id="skillBtn" type="button">使用技能</button>
+            <button id="fleeBtn" type="button">撤退</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="/game.js"></script>
+  </body>
+</html>
