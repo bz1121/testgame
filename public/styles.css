@@ -270,7 +270,7 @@ h1 {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 8px;
 }
 
@@ -299,6 +299,53 @@ h1 {
 .cards {
   display: grid;
   gap: 9px;
+}
+
+.relic-list {
+  display: grid;
+  gap: 8px;
+}
+
+.relic-item {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 9px;
+  border: 2px solid #4f644e;
+  border-radius: 6px;
+  background: #172323;
+}
+
+.relic-item strong {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2px solid #101616;
+  border-radius: 4px;
+  color: #101616;
+  background: var(--violet);
+}
+
+.relic-item span {
+  display: grid;
+  gap: 2px;
+  font-weight: 900;
+}
+
+.relic-item small,
+.empty-note {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.empty-note {
+  margin: 0;
+  padding: 10px;
+  border: 2px solid #4f644e;
+  border-radius: 6px;
+  background: #172323;
 }
 
 .card {
@@ -408,6 +455,7 @@ h1 {
   grid-row: 2;
 }
 
+.choice-modal,
 .battle {
   position: fixed;
   inset: 0;
@@ -419,7 +467,15 @@ h1 {
   backdrop-filter: blur(3px);
 }
 
+.choice-modal {
+  z-index: 12;
+}
+
 .battle.hidden {
+  display: none;
+}
+
+.choice-modal.hidden {
   display: none;
 }
 
@@ -430,6 +486,92 @@ h1 {
   width: min(1120px, 100%);
   padding: 14px;
   border-radius: 8px;
+}
+
+.choice-box {
+  width: min(920px, 100%);
+  padding: 18px;
+  border-radius: 8px;
+}
+
+.choice-box h2 {
+  margin: 2px 0 16px;
+  font-size: 1.6rem;
+}
+
+.choice-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.choice-head button {
+  min-width: 74px;
+  min-height: 40px;
+  border: 2px solid #101616;
+  border-radius: 6px;
+  color: var(--ink);
+  background: #7e463e;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.choice-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.choice-card {
+  display: grid;
+  gap: 10px;
+  min-height: 190px;
+  padding: 14px;
+  border: 3px solid #101616;
+  outline: 2px solid #607351;
+  border-radius: 8px;
+  color: var(--ink);
+  background: linear-gradient(180deg, #263838, #151f20);
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice-card strong {
+  font-size: 1.12rem;
+}
+
+.choice-card small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.choice-card .card-icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 2px solid #101616;
+  border-radius: 6px;
+  color: #101616;
+  background: var(--gold);
+  font-weight: 900;
+}
+
+.choice-card .price {
+  justify-self: start;
+  padding: 5px 8px;
+  border: 2px solid #101616;
+  border-radius: 999px;
+  color: #101616;
+  background: var(--gold);
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.choice-card:disabled {
+  cursor: not-allowed;
+  opacity: 0.46;
 }
 
 .battle-scene {
@@ -579,7 +721,12 @@ button:disabled {
   }
 
   .answers,
-  .battle-bars {
+  .battle-bars,
+  .choice-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
   }
 }

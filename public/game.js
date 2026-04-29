@@ -14,6 +14,7 @@ const assets = {
   ready: false,
   image: assetSheet,
   monsterImages: [],
+  propImages: {},
   hero: {
     down: [
       { x: 908, y: 42, w: 145, h: 185 },
@@ -61,6 +62,9 @@ const assets = {
 assetSheet.onload = () => {
   assets.image = removeChromaKey(assetSheet);
   assets.monsterImages = assets.monsters.map((crop, index) => makeMonsterSprite(assets.image, crop, index));
+  assets.propImages = Object.fromEntries(
+    Object.entries(assets.props).map(([key, crop]) => [key, makePropSprite(assets.image, crop)])
+  );
   assets.ready = true;
 };
 assetSheet.src = "/assets/study-rpg-ai-sheet.png";
@@ -69,9 +73,9 @@ const tileW = 64;
 const tileH = 32;
 const mapW = 18;
 const mapH = 18;
-const monsterCount = 5;
+const baseMonsterCount = 5;
 
-const terrain = [
+let terrain = [
   "gggggggggggggggggg",
   "gggggggfffffgggggg",
   "gggggffffffffggggg",
@@ -106,7 +110,7 @@ const tileNames = {
   m: "旧矿道"
 };
 
-const obstacles = [
+let obstacles = [
   { x: 3, y: 2, type: "tree" },
   { x: 6, y: 4, type: "tree" },
   { x: 12, y: 3, type: "tree" },
@@ -117,11 +121,18 @@ const obstacles = [
   { x: 3, y: 5, type: "chest", opened: false }
 ];
 
-const props = Array.from({ length: 90 }, (_, index) => ({
+let props = Array.from({ length: 90 }, (_, index) => ({
   x: (index * 7 + 3) % mapW + 0.22,
   y: (index * 11 + 5) % mapH + 0.18,
   type: index % 5
 })).filter((item) => terrain[Math.floor(item.y)]?.[Math.floor(item.x)] !== "w");
+
+let mapFeatures = {
+  stairs: null,
+  relics: [],
+  shrines: [],
+  merchants: []
+};
 
 const weapons = [
   { name: "木剑", icon: "I", power: 10, unlock: 1 },
@@ -134,6 +145,20 @@ const skills = [
   { name: "专注回复", icon: "+", unlock: 1, cost: 0, desc: "恢复 35 HP" },
   { name: "破题斩", icon: "x2", unlock: 3, cost: 12, desc: "下题答对双倍伤害" },
   { name: "灵感护盾", icon: "□", unlock: 5, cost: 18, desc: "下次答错伤害减半" }
+];
+
+const relicPool = [
+  { name: "晨星徽章", icon: "*", desc: "攻击 +6", apply: (player) => { player.attackBonus += 6; } },
+  { name: "橡木护符", icon: "O", desc: "最大 HP +18", apply: (player) => { player.maxHp += 18; player.hp += 18; } },
+  { name: "金币磁石", icon: "$", desc: "金币收益 +50%", apply: (player) => { player.coinBonus += 0.5; } },
+  { name: "错题护符", icon: "?", desc: "经验收益 +25%", apply: (player) => { player.xpBonus += 0.25; } },
+  { name: "先手护盾", icon: "□", desc: "每场战斗先获得护盾", apply: (player) => { player.startShield = true; } }
+];
+
+const bossPool = [
+  { name: "章节守卫", hp: 150, attack: 20, xp: 110, coin: 42, color: "#b34d68" },
+  { name: "错题领主", hp: 180, attack: 23, xp: 135, coin: 55, color: "#6f4cc4" },
+  { name: "期末巨像", hp: 220, attack: 27, xp: 170, coin: 70, color: "#8b8376" }
 ];
 
 const monsters = [
@@ -185,12 +210,18 @@ const ui = {
   answers: el("answers"),
   skillBtn: el("skillBtn"),
   fleeBtn: el("fleeBtn"),
-  restartBtn: el("restartBtn")
+  restartBtn: el("restartBtn"),
+  cardModal: el("cardModal"),
+  cardChoices: el("cardChoices"),
+  shopModal: el("shopModal"),
+  shopChoices: el("shopChoices"),
+  closeShopBtn: el("closeShopBtn")
 };
 
 const state = {
   mode: "world",
   subject: "mixed",
+  floor: 1,
   player: {
     x: 2.5,
     y: 2.5,
@@ -203,6 +234,15 @@ const state = {
     defeated: 0,
     weaponIndex: 0,
     skillIndex: 0,
+    skillUnlockedMax: 0,
+    attackBonus: 0,
+    xpBonus: 0,
+    coinBonus: 0,
+    skillPower: 0,
+    skillDiscount: 0,
+    bossKills: 0,
+    startShield: false,
+    relics: [],
     shield: false,
     doubleStrike: false,
     dir: "down",
@@ -213,6 +253,11 @@ const state = {
   currentMonster: null,
   currentQuestion: null,
   answerLocked: false,
+  bossDefeated: false,
+  rewardChoices: [],
+  shopOffers: [],
+  shopOpened: false,
+  shopCooldown: 0,
   message: "在大世界探索，碰到怪物开始战斗。"
 };
 
@@ -233,8 +278,140 @@ function isoToScreen(x, y) {
   };
 }
 
+function generateFloor() {
+  terrain = Array.from({ length: mapH }, () => Array.from({ length: mapW }, () => "g"));
+
+  paintBlob("w", 7 + Math.random() * 4, 6 + Math.random() * 4, 2.1 + Math.random(), 1.4 + Math.random() * 0.8);
+  paintBlob("f", 12 + Math.random() * 3, 4 + Math.random() * 5, 2.4 + Math.random(), 2.2 + Math.random());
+  paintBlob("m", 3 + Math.random() * 5, 10 + Math.random() * 5, 2 + Math.random(), 2 + Math.random());
+  paintPath();
+  terrain = terrain.map((row) => row.join(""));
+
+  obstacles = [];
+  props = [];
+  mapFeatures = { stairs: null, relics: [], shrines: [], merchants: [] };
+  state.bossDefeated = false;
+  state.shopOpened = false;
+  state.shopOffers = [];
+
+  addRandomObstacles("tree", 7 + state.floor);
+  addRandomObstacles("rock", 4 + Math.floor(state.floor / 2));
+  addChests(2 + Math.floor(state.floor / 2));
+  addRelics(Math.min(2, 1 + Math.floor(state.floor / 3)));
+  addShrines(state.floor % 2 === 0 ? 1 : 0);
+  addMerchants(1);
+  addStairs();
+  addGroundProps(46 + state.floor * 4);
+}
+
+function paintBlob(type, cx, cy, rx, ry) {
+  for (let y = 1; y < mapH - 1; y += 1) {
+    for (let x = 1; x < mapW - 1; x += 1) {
+      const nx = (x - cx) / rx;
+      const ny = (y - cy) / ry;
+      if (nx * nx + ny * ny < 1 + Math.random() * 0.38) {
+        terrain[y][x] = type;
+      }
+    }
+  }
+  terrain[2][2] = "g";
+  terrain[2][3] = "g";
+  terrain[3][2] = "g";
+}
+
+function paintPath() {
+  let x = 2;
+  let y = 2;
+  while (x < mapW - 3 || y < mapH - 3) {
+    terrain[y][x] = terrain[y][x] === "w" ? "g" : "m";
+    if (Math.random() > 0.45 && x < mapW - 3) x += 1;
+    if (Math.random() > 0.45 && y < mapH - 3) y += 1;
+    if (x < mapW - 3 && y < mapH - 3 && Math.random() > 0.75) {
+      terrain[y][x + 1] = "m";
+      terrain[y + 1][x] = "m";
+    }
+  }
+}
+
+function addRandomObstacles(type, count) {
+  for (let index = 0; index < count; index += 1) {
+    const pos = randomFeaturePosition(2.3);
+    if (pos) obstacles.push({ x: Math.floor(pos.x), y: Math.floor(pos.y), type });
+  }
+}
+
+function addChests(count) {
+  for (let index = 0; index < count; index += 1) {
+    const pos = randomFeaturePosition(2.5);
+    if (pos) obstacles.push({ x: Math.floor(pos.x), y: Math.floor(pos.y), type: "chest", opened: false });
+  }
+}
+
+function addRelics(count) {
+  for (let index = 0; index < count; index += 1) {
+    const available = relicPool.filter((relic) => !state.player.relics.some((owned) => owned.name === relic.name));
+    const relic = available[Math.floor(Math.random() * available.length)] || relicPool[Math.floor(Math.random() * relicPool.length)];
+    const pos = randomFeaturePosition(2.5);
+    if (pos) mapFeatures.relics.push({ x: Math.floor(pos.x), y: Math.floor(pos.y), relic, picked: false });
+  }
+}
+
+function addShrines(count) {
+  for (let index = 0; index < count; index += 1) {
+    const pos = randomFeaturePosition(2.5);
+    if (pos) mapFeatures.shrines.push({ x: Math.floor(pos.x), y: Math.floor(pos.y), used: false });
+  }
+}
+
+function addMerchants(count) {
+  for (let index = 0; index < count; index += 1) {
+    const pos = randomFeaturePosition(3);
+    if (pos) mapFeatures.merchants.push({ x: Math.floor(pos.x), y: Math.floor(pos.y), used: false });
+  }
+}
+
+function addStairs() {
+  const pos = randomFeaturePosition(6);
+  mapFeatures.stairs = pos ? { x: Math.floor(pos.x), y: Math.floor(pos.y) } : { x: 15, y: 15 };
+}
+
+function addGroundProps(count) {
+  for (let index = 0; index < count; index += 1) {
+    const x = Math.random() * mapW;
+    const y = Math.random() * mapH;
+    const tx = Math.floor(x);
+    const ty = Math.floor(y);
+    if (terrain[ty]?.[tx] !== "w" && !hasAnyFeatureAt(tx, ty) && Math.random() > 0.35) {
+      props.push({ x: x + 0.15, y: y + 0.15, type: index % 4 });
+    }
+  }
+}
+
+function randomFeaturePosition(minPlayerDistance = 1.6) {
+  for (let attempt = 0; attempt < 180; attempt += 1) {
+    const x = 1 + Math.random() * (mapW - 2);
+    const y = 1 + Math.random() * (mapH - 2);
+    const tx = Math.floor(x);
+    const ty = Math.floor(y);
+    if (terrain[ty]?.[tx] === "w") continue;
+    if (distance({ x, y }, state.player) < minPlayerDistance) continue;
+    if (hasAnyFeatureAt(tx, ty)) continue;
+    return { x, y };
+  }
+  return null;
+}
+
+function hasAnyFeatureAt(tx, ty) {
+  if (obstacles.some((item) => !item.opened && item.x === tx && item.y === ty)) return true;
+  if (mapFeatures.relics.some((item) => !item.picked && item.x === tx && item.y === ty)) return true;
+  if (mapFeatures.shrines.some((item) => !item.used && item.x === tx && item.y === ty)) return true;
+  if (mapFeatures.merchants.some((item) => item.x === tx && item.y === ty)) return true;
+  return mapFeatures.stairs && mapFeatures.stairs.x === tx && mapFeatures.stairs.y === ty;
+}
+
 function spawnMonsters() {
   worldMonsters = [];
+  const monsterCount = baseMonsterCount + Math.floor(state.floor * 0.8);
   for (let index = 0; index < monsterCount; index += 1) {
     const pos = randomWalkablePosition(2.8);
     worldMonsters.push(makeWorldMonster(pos.x, pos.y, index % monsters.length));
@@ -311,6 +488,7 @@ function randomNearbyTarget(x, y) {
 
 function update(dt) {
   if (state.mode !== "world") return;
+  state.shopCooldown = Math.max(0, state.shopCooldown - dt);
   const speed = 3.35 * dt;
   const dx = (state.keys.ArrowRight || state.keys.d ? 1 : 0) - (state.keys.ArrowLeft || state.keys.a ? 1 : 0);
   const dy = (state.keys.ArrowDown || state.keys.s ? 1 : 0) - (state.keys.ArrowUp || state.keys.w ? 1 : 0);
@@ -364,12 +542,46 @@ function updateMonsters(dt) {
 }
 
 function checkEncounters() {
-  const chest = obstacles.find((item) => item.type === "chest" && !item.opened);
-  if (chest && distance(state.player, chest) < 0.8) {
+  const chest = obstacles.find((item) => item.type === "chest" && !item.opened && distance(state.player, { x: item.x + 0.5, y: item.y + 0.5 }) < 0.8);
+  if (chest) {
     chest.opened = true;
-    state.player.coins += 30;
-    state.message = "打开宝箱，获得 30 金币。";
+    const reward = Math.round((24 + state.floor * 8) * (1 + state.player.coinBonus));
+    state.player.coins += reward;
+    state.message = `打开宝箱，获得 ${reward} 金币。`;
     renderUi();
+  }
+
+  const relic = mapFeatures.relics.find((item) => !item.picked && distance(state.player, { x: item.x + 0.5, y: item.y + 0.5 }) < 0.78);
+  if (relic) {
+    relic.picked = true;
+    relic.relic.apply(state.player);
+    state.player.relics.push(relic.relic);
+    state.message = `获得遗物：${relic.relic.name}（${relic.relic.desc}）。`;
+    renderUi();
+  }
+
+  const shrine = mapFeatures.shrines.find((item) => !item.used && distance(state.player, { x: item.x + 0.5, y: item.y + 0.5 }) < 0.78);
+  if (shrine) {
+    shrine.used = true;
+    state.player.hp = Math.min(state.player.maxHp, state.player.hp + 36 + state.floor * 4);
+    state.message = "使用知识神龛，恢复了一些体力。";
+    renderUi();
+  }
+
+  const merchant = mapFeatures.merchants.find((item) => distance(state.player, { x: item.x + 0.5, y: item.y + 0.5 }) < 0.82);
+  if (merchant && !state.shopOpened && state.shopCooldown === 0 && state.mode === "world") {
+    openShop(merchant);
+    return;
+  }
+
+  if (mapFeatures.stairs && distance(state.player, { x: mapFeatures.stairs.x + 0.5, y: mapFeatures.stairs.y + 0.5 }) < 0.8) {
+    if (worldMonsters.some((item) => item.alive)) {
+      state.message = "出口被知识迷雾封住了，先清理这一层的怪物。";
+    } else if (!state.bossDefeated) {
+      startBossBattle();
+    } else {
+      nextFloor();
+    }
   }
 
   const monster = worldMonsters.find((item) => item.alive && distance(state.player, item) < 0.72);
@@ -394,12 +606,17 @@ function drawWorld(time) {
 
   const drawables = [
     ...obstacles.map((item) => ({ kind: "obstacle", y: item.y + 0.6, item })),
+    ...(mapFeatures.stairs ? [{ kind: "feature", y: mapFeatures.stairs.y + 0.55, item: { ...mapFeatures.stairs, kind: "stairs" } }] : []),
+    ...mapFeatures.relics.filter((item) => !item.picked).map((item) => ({ kind: "feature", y: item.y + 0.55, item: { ...item, kind: "relic" } })),
+    ...mapFeatures.shrines.filter((item) => !item.used).map((item) => ({ kind: "feature", y: item.y + 0.55, item: { ...item, kind: "shrine" } })),
+    ...mapFeatures.merchants.map((item) => ({ kind: "feature", y: item.y + 0.58, item: { ...item, kind: "merchant" } })),
     ...worldMonsters.filter((item) => item.alive).map((item) => ({ kind: "monster", y: item.y + 0.65, item })),
     { kind: "player", y: state.player.y + 0.7, item: state.player }
   ].sort((a, b) => a.y - b.y);
 
   drawables.forEach((entry) => {
     if (entry.kind === "obstacle") drawObstacle(entry.item);
+    if (entry.kind === "feature") drawFeature(entry.item);
     if (entry.kind === "monster") drawWorldMonster(entry.item, time);
     if (entry.kind === "player") drawPlayer(entry.item, time);
   });
@@ -468,10 +685,6 @@ function diamond(x, y, w, h) {
 
 function drawGroundProp(prop, time) {
   const p = isoToScreen(prop.x, prop.y);
-  if (assets.ready && prop.type === 4) {
-    drawAsset(assets.props.flower, p.x - 18, p.y - 30, 38, 28);
-    return;
-  }
   if (prop.type === 0) {
     pixelRect(p.x - 2, p.y - 11, 4, 12, "#2f6d36");
     pixelRect(p.x + 2, p.y - 15, 5, 5, "#efc65c");
@@ -487,15 +700,15 @@ function drawObstacle(item) {
   const p = isoToScreen(item.x + 0.5, item.y + 0.5);
   if (assets.ready) {
     if (item.type === "tree") {
-      const crop = (item.x + item.y) % 2 ? assets.props.tree : assets.props.pine;
-      drawAsset(crop, p.x - 42, p.y - 102, 84, 106);
+      const key = (item.x + item.y) % 2 ? "tree" : "pine";
+      drawPropSprite(key, p.x - 42, p.y - 102, 84, 106);
       return;
     }
     if (item.type === "rock") {
-      drawAsset(assets.props.rock, p.x - 34, p.y - 62, 70, 62);
+      drawPropSprite("rock", p.x - 34, p.y - 62, 70, 62);
       return;
     }
-    drawAsset(assets.props.chest, p.x - 40, p.y - 76, 80, 74);
+    drawPropSprite("chest", p.x - 40, p.y - 76, 80, 74);
     return;
   }
   if (item.type === "tree") {
@@ -514,6 +727,44 @@ function drawObstacle(item) {
   pixelRect(p.x - 20, p.y - 28, 40, 25, "#9a5b2e");
   pixelRect(p.x - 16, p.y - 34, 32, 9, "#e1b64f");
   pixelRect(p.x - 4, p.y - 24, 8, 8, "#f0d26a");
+}
+
+function drawFeature(item) {
+  const p = isoToScreen(item.x + 0.5, item.y + 0.5);
+  if (item.kind === "stairs") {
+    if (!state.bossDefeated) {
+      pixelRect(p.x - 22, p.y - 42, 44, 38, "#3b2545");
+      pixelRect(p.x - 15, p.y - 52, 30, 18, "#b34d68");
+      pixelRect(p.x - 6, p.y - 30, 12, 18, "#fff3cf");
+      return;
+    }
+    pixelRect(p.x - 26, p.y - 18, 52, 10, "#3c4542");
+    pixelRect(p.x - 22, p.y - 28, 44, 10, "#68716b");
+    pixelRect(p.x - 16, p.y - 38, 32, 10, "#a49d77");
+    pixelRect(p.x - 7, p.y - 54, 14, 18, "#f0bd4b");
+    pixelRect(p.x - 3, p.y - 62, 6, 8, "#fff3cf");
+    return;
+  }
+  if (item.kind === "relic") {
+    pixelRect(p.x - 14, p.y - 32, 28, 28, "#483a7a");
+    pixelRect(p.x - 8, p.y - 38, 16, 14, "#9e75e6");
+    pixelRect(p.x - 4, p.y - 24, 8, 8, "#fff3cf");
+    return;
+  }
+  if (item.kind === "shrine") {
+    pixelRect(p.x - 17, p.y - 34, 34, 30, "#64746b");
+    pixelRect(p.x - 10, p.y - 44, 20, 14, "#61a7ef");
+    pixelRect(p.x - 4, p.y - 58, 8, 18, "#fff3cf");
+    return;
+  }
+  if (item.kind === "merchant") {
+    pixelRect(p.x - 18, p.y - 38, 36, 34, "#7a4c32");
+    pixelRect(p.x - 14, p.y - 54, 28, 18, "#f0c48b");
+    pixelRect(p.x - 22, p.y - 64, 44, 12, "#f0bd4b");
+    pixelRect(p.x - 28, p.y - 24, 10, 22, "#9a5b2e");
+    pixelRect(p.x + 18, p.y - 24, 10, 22, "#9a5b2e");
+    pixelRect(p.x - 10, p.y - 12, 20, 10, "#26323b");
+  }
 }
 
 function drawPlayer(player, time) {
@@ -572,6 +823,15 @@ function pixelRect(x, y, w, h, color) {
 
 function drawAsset(crop, x, y, w, h) {
   ctx.drawImage(assets.image, crop.x, crop.y, crop.w, crop.h, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+}
+
+function drawPropSprite(key, x, y, w, h) {
+  const sprite = assets.propImages[key];
+  if (sprite) {
+    ctx.drawImage(sprite, Math.round(x), Math.round(y), Math.round(w), Math.round(h));
+    return;
+  }
+  drawAsset(assets.props[key], x, y, w, h);
 }
 
 function drawMonsterSprite(monster, x, y, w, h) {
@@ -652,6 +912,53 @@ function makeMonsterSprite(source, crop, type) {
   return sprite;
 }
 
+function makePropSprite(source, crop) {
+  const sprite = document.createElement("canvas");
+  sprite.width = crop.w;
+  sprite.height = crop.h;
+  const spriteCtx = sprite.getContext("2d", { willReadFrequently: true });
+  spriteCtx.drawImage(source, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
+  const imageData = spriteCtx.getImageData(0, 0, crop.w, crop.h);
+  const pixels = imageData.data;
+  const visited = new Uint8Array(crop.w * crop.h);
+  const queue = [];
+
+  for (let x = 0; x < crop.w; x += 1) {
+    queue.push([x, 0], [x, crop.h - 1]);
+  }
+  for (let y = 0; y < crop.h; y += 1) {
+    queue.push([0, y], [crop.w - 1, y]);
+  }
+
+  while (queue.length) {
+    const [x, y] = queue.pop();
+    if (x < 0 || y < 0 || x >= crop.w || y >= crop.h) continue;
+    const pixelIndex = y * crop.w + x;
+    if (visited[pixelIndex]) continue;
+    visited[pixelIndex] = 1;
+    const dataIndex = pixelIndex * 4;
+    if (!isRemovablePropBackground(pixels, dataIndex)) continue;
+    pixels[dataIndex + 3] = 0;
+    queue.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+  }
+
+  spriteCtx.putImageData(imageData, 0, 0);
+  return sprite;
+}
+
+function isRemovablePropBackground(pixels, index) {
+  const red = pixels[index];
+  const green = pixels[index + 1];
+  const blue = pixels[index + 2];
+  const alpha = pixels[index + 3];
+  if (alpha < 8) return true;
+  const chroma = green > 150 && red < 90 && blue < 100;
+  const grass = green > 80 && red > 40 && red < 170 && blue < 105 && green > red * 1.08 && green > blue * 1.25;
+  const dirt = red > 85 && green > 55 && green < 145 && blue < 90 && red > blue * 1.45;
+  const paleEdge = red > 150 && green > 150 && blue < 115;
+  return chroma || grass || dirt || paleEdge;
+}
+
 function battleRect(x, y, w, h, color) {
   btx.fillStyle = color;
   btx.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h));
@@ -678,6 +985,18 @@ function drawMinimap() {
     mtx.fillStyle = "#e15d4f";
     mtx.fillRect(monster.x * scale - 2, monster.y * scale - 2, 5, 5);
   });
+  if (mapFeatures.stairs) {
+    mtx.fillStyle = "#f0bd4b";
+    mtx.fillRect((mapFeatures.stairs.x + 0.5) * scale - 2, (mapFeatures.stairs.y + 0.5) * scale - 2, 5, 5);
+  }
+  mapFeatures.relics.filter((item) => !item.picked).forEach((item) => {
+    mtx.fillStyle = "#9e75e6";
+    mtx.fillRect((item.x + 0.5) * scale - 2, (item.y + 0.5) * scale - 2, 5, 5);
+  });
+  mapFeatures.merchants.forEach((item) => {
+    mtx.fillStyle = "#f0bd4b";
+    mtx.fillRect((item.x + 0.5) * scale - 2, (item.y + 0.5) * scale - 2, 5, 5);
+  });
   mtx.fillStyle = "#fff3cf";
   mtx.fillRect(state.player.x * scale - 2, state.player.y * scale - 2, 5, 5);
 }
@@ -696,9 +1015,32 @@ function startBattle(worldMonster) {
     color: base.color
   };
   state.player.doubleStrike = false;
-  state.player.shield = false;
+  state.player.shield = state.player.startShield;
   ui.battle.classList.remove("hidden");
   ui.battleLog.textContent = `${base.name} 挡住了去路。`;
+  pickQuestion();
+  renderUi();
+  drawBattle();
+}
+
+function startBossBattle() {
+  const base = bossPool[(state.floor - 1) % bossPool.length];
+  state.mode = "battle";
+  state.currentMonster = {
+    worldMonster: { type: 3, alive: true, boss: true },
+    name: base.name,
+    hp: base.hp + state.floor * 36,
+    maxHp: base.hp + state.floor * 36,
+    attack: base.attack + state.floor * 3,
+    xp: base.xp + state.floor * 18,
+    coin: base.coin + state.floor * 12,
+    color: base.color,
+    boss: true
+  };
+  state.player.doubleStrike = false;
+  state.player.shield = true;
+  ui.battle.classList.remove("hidden");
+  ui.battleLog.textContent = `${base.name} 守着通往下一层的出口。`;
   pickQuestion();
   renderUi();
   drawBattle();
@@ -764,16 +1106,24 @@ function answerQuestion(index, button) {
 
 function winBattle() {
   const monster = state.currentMonster;
-  monster.worldMonster.alive = false;
+  if (monster.worldMonster) monster.worldMonster.alive = false;
   state.player.defeated += 1;
-  state.player.xp += monster.xp;
-  state.player.coins += monster.coin;
-  state.message = `击败 ${monster.name}，获得 ${monster.xp} 经验。`;
+  const xpReward = Math.round(monster.xp * (1 + state.player.xpBonus));
+  const coinReward = Math.round(monster.coin * (1 + state.player.coinBonus));
+  state.player.xp += xpReward;
+  state.player.coins += coinReward;
+  state.message = `击败 ${monster.name}，获得 ${xpReward} 经验和 ${coinReward} 金币。`;
   levelUp();
   endBattle();
+  if (monster.boss) {
+    state.bossDefeated = true;
+    state.player.bossKills += 1;
+    state.message = `击败 Boss：${monster.name}。选择一张奖励卡。`;
+    openRewardCards();
+    return;
+  }
   if (worldMonsters.every((item) => !item.alive)) {
-    spawnMonsters();
-    state.message = "新的怪物刷新了，地图更热闹了。";
+    state.message = "本层怪物已清理，去找出口进入下一层。";
   }
 }
 
@@ -809,15 +1159,16 @@ function levelUp() {
 
 function useSkill() {
   const skill = skills[state.player.skillIndex];
-  if (state.player.level < skill.unlock) return;
-  if (skill.cost > 0 && state.player.coins < skill.cost) {
+  if (state.player.level < skill.unlock && state.player.skillIndex > state.player.skillUnlockedMax) return;
+  const cost = Math.max(0, skill.cost - state.player.skillDiscount);
+  if (cost > 0 && state.player.coins < cost) {
     ui.battleLog.textContent = "金币不够，暂时用不了这个技能。";
     return;
   }
-  state.player.coins -= skill.cost;
+  state.player.coins -= cost;
 
   if (skill.name === "专注回复") {
-    state.player.hp = Math.min(state.player.maxHp, state.player.hp + 35 + state.player.level * 5);
+    state.player.hp = Math.min(state.player.maxHp, state.player.hp + 35 + state.player.level * 5 + state.player.skillPower);
     ui.battleLog.textContent = "使用专注回复，恢复了体力。";
   }
   if (skill.name === "破题斩") {
@@ -833,7 +1184,159 @@ function useSkill() {
 }
 
 function getAttack() {
-  return weapons[state.player.weaponIndex].power + state.player.level * 4;
+  return weapons[state.player.weaponIndex].power + state.player.level * 4 + state.player.attackBonus;
+}
+
+function nextFloor() {
+  state.floor += 1;
+  state.player.x = 2.5;
+  state.player.y = 2.5;
+  state.player.hp = Math.min(state.player.maxHp, state.player.hp + 24);
+  state.message = `进入第 ${state.floor} 层，地图和敌人都重新变化了。`;
+  generateFloor();
+  spawnMonsters();
+  renderUi();
+}
+
+function openRewardCards() {
+  state.mode = "reward";
+  state.rewardChoices = makeCardChoices("reward");
+  renderChoiceCards(ui.cardChoices, state.rewardChoices, false);
+  ui.cardModal.classList.remove("hidden");
+}
+
+function openShop(merchant) {
+  state.mode = "shop";
+  state.shopOpened = true;
+  if (state.shopOffers.length === 0) state.shopOffers = makeCardChoices("shop");
+  renderChoiceCards(ui.shopChoices, state.shopOffers, true);
+  ui.shopModal.classList.remove("hidden");
+  state.message = "遇到旅行商人，可以用金币购买成长卡。";
+}
+
+function closeShop() {
+  ui.shopModal.classList.add("hidden");
+  state.mode = "world";
+  state.shopOpened = false;
+  state.shopCooldown = 1.2;
+}
+
+function makeCardChoices(source) {
+  const cards = [];
+  const add = (card) => cards.push({
+    ...card,
+    price: source === "shop" ? card.price : 0
+  });
+
+  const availableRelics = relicPool.filter((relic) => !state.player.relics.some((owned) => owned.name === relic.name));
+  if (availableRelics.length) {
+    const relic = availableRelics[Math.floor(Math.random() * availableRelics.length)];
+    add({
+      icon: relic.icon,
+      title: relic.name,
+      desc: relic.desc,
+      price: 34 + state.floor * 9,
+      apply: () => gainRelic(relic)
+    });
+  }
+
+  add({
+    icon: "⚔",
+    title: "武器升阶",
+    desc: state.player.weaponIndex < weapons.length - 1 ? `直接装备 ${weapons[state.player.weaponIndex + 1].name}` : "攻击 +8",
+    price: 42 + state.floor * 12,
+    apply: () => {
+      if (state.player.weaponIndex < weapons.length - 1) state.player.weaponIndex += 1;
+      else state.player.attackBonus += 8;
+      state.message = "武器获得强化。";
+    }
+  });
+
+  add({
+    icon: "◆",
+    title: state.player.skillUnlockedMax < skills.length - 1 ? "学习新技能" : "技能精通",
+    desc: state.player.skillUnlockedMax < skills.length - 1 ? `解锁 ${skills[state.player.skillUnlockedMax + 1].name}` : "技能效果 +10，技能金币消耗 -2",
+    price: 30 + state.floor * 8,
+    apply: () => {
+      if (state.player.skillUnlockedMax < skills.length - 1) {
+        state.player.skillUnlockedMax += 1;
+        state.player.skillIndex = state.player.skillUnlockedMax;
+        state.message = "学会了新的战斗技能。";
+      } else {
+        state.player.skillPower += 10;
+        state.player.skillDiscount += 2;
+        state.message = "技能变得更熟练了。";
+      }
+    }
+  });
+
+  add({
+    icon: "♥",
+    title: "生命训练",
+    desc: "最大 HP +16，并恢复 16 HP",
+    price: 28 + state.floor * 7,
+    apply: () => {
+      state.player.maxHp += 16;
+      state.player.hp = Math.min(state.player.maxHp, state.player.hp + 16);
+      state.message = "体力上限提升了。";
+    }
+  });
+
+  add({
+    icon: "★",
+    title: "答题专注",
+    desc: "经验收益 +15%，金币收益 +10%",
+    price: 36 + state.floor * 9,
+    apply: () => {
+      state.player.xpBonus += 0.15;
+      state.player.coinBonus += 0.1;
+      state.message = "学习收益提升了。";
+    }
+  });
+
+  return shuffle(cards).slice(0, 3);
+}
+
+function gainRelic(relic) {
+  relic.apply(state.player);
+  state.player.relics.push(relic);
+  state.message = `获得遗物：${relic.name}（${relic.desc}）。`;
+}
+
+function renderChoiceCards(container, cards, priced) {
+  container.innerHTML = "";
+  cards.forEach((card, index) => {
+    const button = document.createElement("button");
+    button.className = "choice-card";
+    button.type = "button";
+    button.disabled = priced && state.player.coins < card.price;
+    button.innerHTML = `
+      <span class="card-icon">${card.icon}</span>
+      <strong>${card.title}</strong>
+      <small>${card.desc}</small>
+      ${priced ? `<span class="price">${card.price} 金币</span>` : ""}
+    `;
+    button.addEventListener("click", () => {
+      if (priced) {
+        if (state.player.coins < card.price) return;
+        state.player.coins -= card.price;
+        cards.splice(index, 1);
+        card.apply();
+        renderChoiceCards(container, cards, true);
+        renderUi();
+        return;
+      }
+      card.apply();
+      ui.cardModal.classList.add("hidden");
+      state.mode = "world";
+      nextFloor();
+    });
+    container.appendChild(button);
+  });
+}
+
+function shuffle(items) {
+  return [...items].sort(() => Math.random() - 0.5);
 }
 
 function renderUi() {
@@ -849,9 +1352,32 @@ function renderUi() {
   ui.attackText.textContent = getAttack();
   ui.defeatedText.textContent = player.defeated;
   ui.coinText.textContent = player.coins;
+  const floorText = document.getElementById("floorText");
+  if (floorText) floorText.textContent = state.floor;
+  const relicList = document.getElementById("relicList");
+  if (relicList) {
+    relicList.innerHTML = "";
+    if (player.relics.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "empty-note";
+      empty.textContent = "还没有遗物，探索地图可以获得。";
+      relicList.appendChild(empty);
+    } else {
+      player.relics.forEach((relic) => {
+        const item = document.createElement("div");
+        item.className = "relic-item";
+        item.innerHTML = `<strong>${relic.icon}</strong><span>${relic.name}<small>${relic.desc}</small></span>`;
+        relicList.appendChild(item);
+      });
+    }
+  }
   ui.questText.textContent = player.defeated >= 5
-    ? "第一片区域已清理，可以继续扩展新地图和章节。"
-    : `击败 ${5 - player.defeated} 只怪物，收集金币升级装备。`;
+    ? "清理怪物，击败 Boss，选择奖励卡后进入下一层。"
+    : worldMonsters.some((item) => item.alive)
+      ? `第 ${state.floor} 层：清理怪物，收集宝箱和遗物。`
+      : state.bossDefeated
+        ? "Boss 已击败，踩出口进入下一层。"
+        : "普通怪已清理，踩出口挑战 Boss。";
   ui.battleHeroHp.value = player.hp;
   ui.battleHeroHp.max = player.maxHp;
 
@@ -868,12 +1394,13 @@ function renderCards() {
   ui.weaponList.innerHTML = "";
   weapons.forEach((weapon, index) => {
     const card = document.createElement("button");
+    const locked = state.player.level < weapon.unlock && index > state.player.weaponIndex;
     card.type = "button";
-    card.className = `card ${index === state.player.weaponIndex ? "active" : ""} ${state.player.level < weapon.unlock ? "locked" : ""}`;
+    card.className = `card ${index === state.player.weaponIndex ? "active" : ""} ${locked ? "locked" : ""}`;
     card.dataset.icon = weapon.icon;
     appendCardText(card, weapon.name, `攻击 +${weapon.power} · ${weapon.unlock} 级解锁`, index === state.player.weaponIndex);
     card.addEventListener("click", () => {
-      if (state.player.level >= weapon.unlock) {
+      if (!locked) {
         state.player.weaponIndex = index;
         renderUi();
       }
@@ -884,12 +1411,13 @@ function renderCards() {
   ui.skillList.innerHTML = "";
   skills.forEach((skill, index) => {
     const card = document.createElement("button");
+    const locked = state.player.level < skill.unlock && index > state.player.skillUnlockedMax;
     card.type = "button";
-    card.className = `card ${index === state.player.skillIndex ? "active" : ""} ${state.player.level < skill.unlock ? "locked" : ""}`;
+    card.className = `card ${index === state.player.skillIndex ? "active" : ""} ${locked ? "locked" : ""}`;
     card.dataset.icon = skill.icon;
     appendCardText(card, skill.name, `${skill.desc} · ${skill.unlock} 级解锁`, index === state.player.skillIndex);
     card.addEventListener("click", () => {
-      if (state.player.level >= skill.unlock) {
+      if (!locked) {
         state.player.skillIndex = index;
         renderUi();
       }
@@ -958,6 +1486,7 @@ function drawBattle() {
 }
 
 function restart() {
+  state.floor = 1;
   Object.assign(state.player, {
     x: 2.5,
     y: 2.5,
@@ -970,6 +1499,15 @@ function restart() {
     defeated: 0,
     weaponIndex: 0,
     skillIndex: 0,
+    skillUnlockedMax: 0,
+    attackBonus: 0,
+    xpBonus: 0,
+    coinBonus: 0,
+    skillPower: 0,
+    skillDiscount: 0,
+    bossKills: 0,
+    startShield: false,
+    relics: [],
     shield: false,
     doubleStrike: false,
     dir: "down",
@@ -980,8 +1518,15 @@ function restart() {
     if (item.type === "chest") item.opened = false;
   });
   state.mode = "world";
+  state.bossDefeated = false;
+  state.rewardChoices = [];
+  state.shopOffers = [];
+  state.shopOpened = false;
   state.message = "新的学习冒险开始了。";
   ui.battle.classList.add("hidden");
+  ui.cardModal.classList.add("hidden");
+  ui.shopModal.classList.add("hidden");
+  generateFloor();
   spawnMonsters();
   renderUi();
 }
@@ -1032,9 +1577,11 @@ ui.fleeBtn.addEventListener("click", () => {
   endBattle();
 });
 ui.restartBtn.addEventListener("click", restart);
+ui.closeShopBtn.addEventListener("click", closeShop);
 window.addEventListener("resize", resizeCanvas);
 
 resizeCanvas();
+generateFloor();
 spawnMonsters();
 renderUi();
 requestAnimationFrame(loop);

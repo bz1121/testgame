@@ -19,12 +19,12 @@
 
         <div class="hud top-right pixel-panel">
           <span>WASD / 方向键移动</span>
-          <span>碰到怪物开始战斗</span>
+          <span>清怪后找出口进入下一层</span>
         </div>
 
         <div class="quest-log pixel-panel">
           <p>当前目标</p>
-          <strong id="questText">击败 5 只怪物，收集金币升级装备。</strong>
+          <strong id="questText">第 1 层：清理怪物，收集宝箱和遗物。</strong>
         </div>
 
         <div class="minimap pixel-panel" aria-label="小地图">
@@ -69,10 +69,16 @@
         <section>
           <p class="label">成长路线</p>
           <div class="stats">
+            <div><span>层数</span><strong id="floorText">1</strong></div>
             <div><span>攻击</span><strong id="attackText">14</strong></div>
             <div><span>击败</span><strong id="defeatedText">0</strong></div>
             <div><span>金币</span><strong id="coinText">0</strong></div>
           </div>
+        </section>
+
+        <section>
+          <p class="label">遗物</p>
+          <div id="relicList" class="relic-list"></div>
         </section>
 
         <section>
@@ -127,6 +133,27 @@
             <button id="fleeBtn" type="button">撤退</button>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="cardModal" class="choice-modal hidden" role="dialog" aria-modal="true" aria-label="奖励抽卡">
+      <div class="choice-box pixel-panel">
+        <p class="label">Boss 奖励</p>
+        <h2>选择一张卡牌</h2>
+        <div id="cardChoices" class="choice-grid"></div>
+      </div>
+    </div>
+
+    <div id="shopModal" class="choice-modal hidden" role="dialog" aria-modal="true" aria-label="商人">
+      <div class="choice-box pixel-panel">
+        <div class="choice-head">
+          <div>
+            <p class="label">旅行商人</p>
+            <h2>金币换成长</h2>
+          </div>
+          <button id="closeShopBtn" type="button">离开</button>
+        </div>
+        <div id="shopChoices" class="choice-grid"></div>
       </div>
     </div>
 
