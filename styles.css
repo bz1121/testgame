@@ -1,0 +1,459 @@
+:root {
+  --bg: #16221f;
+  --panel: #f7f2e6;
+  --ink: #1d2a2a;
+  --muted: #61706c;
+  --gold: #f1b84b;
+  --green: #2fbf71;
+  --red: #d9574f;
+  --blue: #4e8bd8;
+  --purple: #8968c9;
+  --shadow: 0 18px 45px rgba(0, 0, 0, 0.24);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: "Microsoft YaHei", "PingFang SC", system-ui, sans-serif;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(241, 184, 75, 0.2), transparent 30%),
+    linear-gradient(135deg, #142326 0%, #25382b 52%, #4b3f2d 100%);
+}
+
+button {
+  font: inherit;
+}
+
+.game-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 22px;
+  width: min(1180px, calc(100% - 32px));
+  margin: 0 auto;
+  padding: 32px 0;
+}
+
+.arena,
+.side-panel {
+  background: rgba(247, 242, 230, 0.96);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+}
+
+.arena {
+  min-height: calc(100vh - 64px);
+  padding: 26px;
+}
+
+.topbar,
+.question-header,
+.stat-row,
+.xp-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.eyebrow,
+.panel-title,
+.tag {
+  margin: 0;
+  color: #8d5d19;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+h1 {
+  margin: 4px 0 0;
+  font-size: clamp(2rem, 6vw, 4.1rem);
+  line-height: 0.95;
+}
+
+.subject-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(54px, 1fr));
+  gap: 8px;
+}
+
+.tab,
+.restart,
+.answer,
+.skill {
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+
+.tab {
+  min-height: 40px;
+  padding: 0 12px;
+  color: #33413c;
+  background: #e6ddca;
+  font-weight: 800;
+}
+
+.tab.active {
+  color: #fff;
+  background: #2d8f69;
+}
+
+.battlefield {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  margin: 28px 0;
+}
+
+.fighter {
+  display: grid;
+  grid-template-columns: 126px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  min-height: 178px;
+  padding: 20px;
+  border-radius: 8px;
+  background: #fffaf0;
+  border: 2px solid #eadbbd;
+}
+
+.monster-card {
+  background: #f4f7f0;
+}
+
+.sprite {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.hero-sprite {
+  background: linear-gradient(145deg, #62b26f, #227d76);
+}
+
+.hero-sprite::before {
+  content: "";
+  width: 52px;
+  height: 58px;
+  border-radius: 50% 50% 42% 42%;
+  background: #ffd08a;
+  box-shadow: 0 42px 0 12px #3b6fa8;
+}
+
+.sword {
+  position: absolute;
+  right: 14px;
+  top: 10px;
+  width: 8px;
+  height: 78px;
+  border-radius: 8px;
+  background: #e9edf0;
+  transform: rotate(35deg);
+}
+
+.monster-sprite {
+  background: linear-gradient(145deg, #8e6bd1, #cf5d73);
+  animation: floaty 2.4s ease-in-out infinite;
+}
+
+.monster-sprite::before {
+  content: "";
+  width: 78px;
+  height: 68px;
+  border-radius: 48% 52% 42% 42%;
+  background: #5f3d91;
+}
+
+.eye {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: inset 9px 0 0 #1f1b2b;
+}
+
+.name {
+  margin: 0 0 10px;
+  font-size: 1.35rem;
+  font-weight: 900;
+}
+
+.stat-row,
+.meter-text {
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.bar {
+  overflow: hidden;
+  height: 14px;
+  margin-top: 12px;
+  border-radius: 999px;
+  background: #ddd5c4;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+  transition: width 220ms ease;
+}
+
+.bar.monster span {
+  background: var(--red);
+}
+
+.bar.xp span {
+  background: var(--blue);
+}
+
+.meter-text {
+  margin: 7px 0 0;
+}
+
+.versus {
+  min-width: 92px;
+  padding: 10px 12px;
+  color: #fff;
+  text-align: center;
+  font-weight: 900;
+  border-radius: 999px;
+  background: #d4832f;
+  box-shadow: 0 8px 0 #9d5920;
+}
+
+.question-panel {
+  padding: 24px;
+  border-radius: 8px;
+  background: #fffdf7;
+  border: 2px solid #eadbbd;
+}
+
+.feedback {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+h2 {
+  min-height: 78px;
+  margin: 18px 0 20px;
+  font-size: clamp(1.35rem, 3vw, 2.1rem);
+  line-height: 1.35;
+}
+
+.answers {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.answer {
+  min-height: 64px;
+  padding: 14px 16px;
+  color: #fff;
+  background: #2c6d93;
+  font-weight: 900;
+  text-align: left;
+}
+
+.answer:hover,
+.skill:hover,
+.tab:hover,
+.restart:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.16);
+}
+
+.answer.correct {
+  background: #2e9d66;
+}
+
+.answer.wrong {
+  background: #bf4641;
+}
+
+.side-panel {
+  align-self: start;
+  padding: 20px;
+}
+
+.progress-block + .progress-block {
+  margin-top: 22px;
+  padding-top: 20px;
+  border-top: 2px solid #e4d8c3;
+}
+
+.panel-title {
+  margin-bottom: 12px;
+}
+
+.skill-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.skill {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px;
+  color: #fff;
+  background: #41606f;
+  text-align: left;
+  font-weight: 900;
+}
+
+.skill:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  transform: none;
+  box-shadow: none;
+}
+
+.skill-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  color: #20312d;
+  background: var(--gold);
+}
+
+.record {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin: 0;
+}
+
+.record div {
+  padding: 12px 8px;
+  border-radius: 8px;
+  background: #efe6d2;
+  text-align: center;
+}
+
+dt {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+dd {
+  margin: 2px 0 0;
+  font-size: 1.55rem;
+  font-weight: 900;
+}
+
+.restart {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 22px;
+  color: #fff;
+  background: #8d493a;
+  font-weight: 900;
+}
+
+.hit {
+  animation: hit 260ms ease;
+}
+
+.shake {
+  animation: shake 260ms ease;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes hit {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-12px); }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px); }
+  75% { transform: translateX(6px); }
+}
+
+@media (max-width: 920px) {
+  .game-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .arena {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  .game-shell {
+    width: min(100% - 20px, 1180px);
+    padding: 10px 0;
+  }
+
+  .arena,
+  .side-panel {
+    padding: 14px;
+  }
+
+  .topbar,
+  .battlefield,
+  .question-header {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .subject-tabs,
+  .answers,
+  .record {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .fighter {
+    grid-template-columns: 82px minmax(0, 1fr);
+    min-height: 128px;
+    padding: 14px;
+  }
+
+  .sprite {
+    width: 76px;
+  }
+
+  .hero-sprite::before {
+    width: 36px;
+    height: 40px;
+    box-shadow: 0 30px 0 7px #3b6fa8;
+  }
+
+  .sword {
+    height: 54px;
+  }
+
+  .monster-sprite::before {
+    width: 52px;
+    height: 46px;
+  }
+
+  .versus {
+    justify-self: center;
+  }
+}

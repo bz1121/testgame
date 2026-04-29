@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>学霸勇者</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="game-shell">
+      <section class="arena" aria-label="战斗区域">
+        <div class="topbar">
+          <div>
+            <p class="eyebrow">学习冒险</p>
+            <h1>学霸勇者</h1>
+          </div>
+          <div class="subject-tabs" role="tablist" aria-label="题目类型">
+            <button class="tab active" data-subject="mixed" type="button">混合</button>
+            <button class="tab" data-subject="math" type="button">数学</button>
+            <button class="tab" data-subject="english" type="button">英语</button>
+            <button class="tab" data-subject="logic" type="button">常识</button>
+          </div>
+        </div>
+
+        <div class="battlefield">
+          <article class="fighter hero-card">
+            <div class="sprite hero-sprite" aria-hidden="true">
+              <span class="sword"></span>
+            </div>
+            <div class="fighter-copy">
+              <p class="name">勇者</p>
+              <div class="stat-row">
+                <span>等级 <strong id="level">1</strong></span>
+                <span>连击 <strong id="combo">0</strong></span>
+              </div>
+              <div class="bar">
+                <span id="heroHpBar" style="width: 100%"></span>
+              </div>
+              <p class="meter-text"><span id="heroHp">100</span>/100 HP</p>
+            </div>
+          </article>
+
+          <div class="versus">答题攻击</div>
+
+          <article class="fighter monster-card">
+            <div class="sprite monster-sprite" aria-hidden="true">
+              <span class="eye"></span>
+            </div>
+            <div class="fighter-copy">
+              <p class="name" id="monsterName">雾影史莱姆</p>
+              <div class="stat-row">
+                <span>第 <strong id="stage">1</strong> 关</span>
+                <span>攻击 <strong id="monsterAttack">8</strong></span>
+              </div>
+              <div class="bar monster">
+                <span id="monsterHpBar" style="width: 100%"></span>
+              </div>
+              <p class="meter-text"><span id="monsterHp">45</span>/<span id="monsterMaxHp">45</span> HP</p>
+            </div>
+          </article>
+        </div>
+
+        <section class="question-panel" aria-label="答题面板">
+          <div class="question-header">
+            <span id="questionTag" class="tag">数学</span>
+            <span id="feedback" class="feedback">答对造成伤害，答错会被反击。</span>
+          </div>
+          <h2 id="questionText">加载题目中...</h2>
+          <div id="answers" class="answers"></div>
+        </section>
+      </section>
+
+      <aside class="side-panel" aria-label="角色状态">
+        <section class="progress-block">
+          <p class="panel-title">成长</p>
+          <div class="xp-line">
+            <span>经验</span>
+            <strong><span id="xp">0</span>/<span id="xpNeeded">60</span></strong>
+          </div>
+          <div class="bar xp">
+            <span id="xpBar" style="width: 0%"></span>
+          </div>
+        </section>
+
+        <section class="progress-block">
+          <p class="panel-title">技能</p>
+          <div class="skill-grid">
+            <button id="healBtn" class="skill" type="button">
+              <span class="skill-icon">+</span>
+              <span>专注回复</span>
+              <small>30 经验</small>
+            </button>
+            <button id="blastBtn" class="skill" type="button">
+              <span class="skill-icon">!</span>
+              <span>灵感一击</span>
+              <small>50 经验</small>
+            </button>
+          </div>
+        </section>
+
+        <section class="progress-block">
+          <p class="panel-title">战绩</p>
+          <dl class="record">
+            <div><dt>击败</dt><dd id="defeated">0</dd></div>
+            <div><dt>正确</dt><dd id="correct">0</dd></div>
+            <div><dt>错误</dt><dd id="wrong">0</dd></div>
+          </dl>
+        </section>
+
+        <button id="restartBtn" class="restart" type="button">重新开始</button>
+      </aside>
+    </main>
+
+    <script src="game.js"></script>
+  </body>
+</html>
